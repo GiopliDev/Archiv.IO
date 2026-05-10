@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "id": "addon-template",
+  "id": "archiv-io",
   "version": "${version}",
-  "name": "Addon Template",
-  "description": "An addon template for Meteor Client addons.",
+  "name": "Archiv.IO",
+  "description": "Addons useful to player that like archiving",
   "authors": [
-    "seasnail"
+    "GiopliDev"
   ],
   "contact": {
     "sources": "https://github.com/MeteorDevelopment/meteor-addon-template"
@@ -18,7 +18,7 @@
     ]
   },
   "mixins": [
-    "addon-template.mixins.json"
+    "archiv-io.mixins.json"
   ],
   "custom": {
     "meteor-client:color": "225,25,25",
