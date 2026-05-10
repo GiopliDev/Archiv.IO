@@ -1,5 +1,5 @@
 # Archiv.IO
-![StupidBanner](https://imgur.com/rE4K0dM)
+![StupidBanner](https://i.imgur.com/rE4K0dM.png)
 A useless Meteor Client addon designed specifically for server archivers, explorers, and history preservers.
 
 # Modules:
@@ -15,8 +15,8 @@ Dynamic ESP || Highlights logged signs.
 Player Tracking || Keep track of known players. The addon will cross-reference signs against your tracked players list.
 ```
 ![Menu](https://i.imgur.com/RNCeW3f.png)
-![SignDetection](https://imgur.com/hmPUW5f)
-![SignSearch](https://imgur.com/humiRDe)
+![SignDetection](https://i.imgur.com/hmPUW5f.png)
+![SignSearch](https://i.imgur.com/humiRDe.png)
 #### Commands:
 ```
 .signs list || View the total number of unique signs logged.
