@@ -5,12 +5,13 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import meteordevelopment.meteorclient.commands.Command;
 import meteordevelopment.meteorclient.MeteorClient;
-import net.minecraft.client.multiplayer.ClientSuggestionProvider;
-import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.command.CommandSource;
+import net.minecraft.client.network.PlayerListEntry;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Map;
 
 public class SignSearchCommand extends Command {
@@ -19,7 +20,7 @@ public class SignSearchCommand extends Command {
     }
 
     @Override
-    public void build(LiteralArgumentBuilder<ClientSuggestionProvider> builder) {
+    public void build(LiteralArgumentBuilder<CommandSource> builder) {
         builder.then(literal("search")
             .then(literal("text").then(argument("query", StringArgumentType.greedyString()).executes(context -> {
                 String query = StringArgumentType.getString(context, "query").toLowerCase();
@@ -39,45 +40,66 @@ public class SignSearchCommand extends Command {
         );
         
         builder.then(literal("list").executes(context -> {
-            info("Loaded %d unique signs.", SignManager.SIGN_DB.size());
+            SignManager.updateServerPath();
+            info("Loaded %d unique signs for current server.", SignManager.SIGN_DB.size());
+            info("Total known players globally: %d", SignManager.GLOBAL_PLAYERS.size());
             return SINGLE_SUCCESS;
         }));
 
         builder.then(literal("update-players").executes(context -> {
-            info("WARNING: Updating players. This might take a while depending on the database size...");
+            SignManager.updateServerPath();
+            info("Updating players for current server database using global player list...");
             int updated = SignManager.updateAllPlayers();
             info("Updated players in %d signs.", updated);
             return SINGLE_SUCCESS;
         }));
 
         builder.then(literal("player")
-            .then(literal("add").then(argument("name", StringArgumentType.word()).executes(context -> {
-                String name = StringArgumentType.getString(context, "name");
-                if (name.equals("*")) {
-                    if (mc.level == null) return SINGLE_SUCCESS;
-                    int added = 0;
-                    for (AbstractClientPlayer player : mc.level.players()) {
-                        if (SignManager.KNOWN_PLAYERS.add(player.getName().getString())) {
-                            added++;
+            .then(literal("addonline").executes(context -> {
+                if (mc.getNetworkHandler() == null) return SINGLE_SUCCESS;
+                SignManager.updateServerPath();
+                int added = 0;
+                Collection<PlayerListEntry> players = mc.getNetworkHandler().getPlayerList();
+                for (PlayerListEntry player : players) {
+                    String name = player.getProfile().getName();
+                    if (!SignManager.GLOBAL_PLAYERS.containsKey(name)) {
+                        SignManager.addKnownPlayer(name);
+                        added++;
+                    }
+                }
+                if (added > 0) {
+                    info("Added %d new online players to the global list.", added);
+                } else {
+                    info("No new players found (all already known).");
+                }
+                return SINGLE_SUCCESS;
+            }))
+            .then(literal("add").then(argument("name", StringArgumentType.word())
+                .suggests((context, suggester) -> {
+                    if (mc.getNetworkHandler() != null) {
+                        for (PlayerListEntry player : mc.getNetworkHandler().getPlayerList()) {
+                            suggester.suggest(player.getProfile().getName());
                         }
                     }
-                    if (added > 0) SignManager.savePlayers();
-                    info("Added %d online players to the known list.", added);
+                    return suggester.buildFuture();
+                })
+                .executes(context -> {
+                String name = StringArgumentType.getString(context, "name");
+                SignManager.updateServerPath();
+                if (!SignManager.GLOBAL_PLAYERS.containsKey(name)) {
+                    SignManager.addKnownPlayer(name);
+                    info("Added player '%s' to global list.", name);
                 } else {
-                    if (SignManager.KNOWN_PLAYERS.add(name)) {
-                        SignManager.savePlayers();
-                        info("Added player '%s'.", name);
-                    } else {
-                        info("Player '%s' is already known.", name);
-                    }
+                    info("Player '%s' is already in global list.", name);
                 }
                 return SINGLE_SUCCESS;
             })))
             .then(literal("remove").then(argument("name", StringArgumentType.word()).executes(context -> {
                 String name = StringArgumentType.getString(context, "name");
-                if (SignManager.KNOWN_PLAYERS.remove(name)) {
+                SignManager.updateServerPath();
+                if (SignManager.GLOBAL_PLAYERS.remove(name) != null) {
                     SignManager.savePlayers();
-                    info("Removed player '%s'.", name);
+                    info("Removed player '%s' from global list.", name);
                 } else {
                     info("Player '%s' was not in the list.", name);
                 }
@@ -87,10 +109,12 @@ public class SignSearchCommand extends Command {
 
         builder.then(literal("export")
             .executes(context -> {
+                SignManager.updateServerPath();
                 exportToCSV(null);
                 return SINGLE_SUCCESS;
             })
             .then(argument("param", StringArgumentType.greedyString()).executes(context -> {
+                SignManager.updateServerPath();
                 String param = StringArgumentType.getString(context, "param");
                 exportToCSV(param);
                 return SINGLE_SUCCESS;
@@ -99,7 +123,19 @@ public class SignSearchCommand extends Command {
     }
 
     private void search(String query, String type) {
+        SignManager.updateServerPath();
         int found = 0;
+        
+        if (type.equals("player")) {
+            for (Map.Entry<String, SignManager.PlayerEntry> pEntry : SignManager.GLOBAL_PLAYERS.entrySet()) {
+                if (pEntry.getKey().toLowerCase().contains(query)) {
+                    info("--- Global Player Info ---");
+                    info("Name: " + pEntry.getKey());
+                    info("Seen on: " + String.join(", ", pEntry.getValue().servers));
+                }
+            }
+        }
+
         for (Map.Entry<String, SignManager.SignEntry> entry : SignManager.SIGN_DB.entrySet()) {
             boolean match = false;
             
@@ -139,11 +175,11 @@ public class SignSearchCommand extends Command {
             }
         }
         
-        info("Found %d matches.", found);
+        info("Found %d matches for this server.", found);
     }
 
     private void exportToCSV(String param) {
-        File exportFile = new File(MeteorClient.FOLDER, "sign_export.csv");
+        File exportFile = new File(MeteorClient.FOLDER, "ArchivIO/export_" + System.currentTimeMillis() + ".csv");
         try (FileWriter writer = new FileWriter(exportFile)) {
             writer.write("Content,Dates,Players,Dimension,X,Y,Z\n");
             int exported = 0;

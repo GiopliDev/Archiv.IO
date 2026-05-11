@@ -1,17 +1,18 @@
 package com.example.addon.modules;
 
 import com.example.addon.AddonTemplate;
+import com.example.addon.SignManager;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.SignBlockEntity;
-import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.text.Text;
+import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.SignBlockEntity;
+import net.minecraft.block.entity.SignText;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -75,21 +76,21 @@ public class SignLogger extends Module {
         if (ticks < 20) return; // Only check once per second
         ticks = 0;
 
-        if (mc.level == null || mc.player == null) return;
+        if (mc.world == null || mc.player == null) return;
 
-        int chunkRadius = mc.options.renderDistance().get();
-        BlockPos playerPos = mc.player.blockPosition();
+        int chunkRadius = mc.options.getViewDistance().getValue();
+        BlockPos playerPos = mc.player.getBlockPos();
         int playerCX = playerPos.getX() >> 4;
         int playerCZ = playerPos.getZ() >> 4;
 
         for (int cx = playerCX - chunkRadius; cx <= playerCX + chunkRadius; cx++) {
             for (int cz = playerCZ - chunkRadius; cz <= playerCZ + chunkRadius; cz++) {
-                net.minecraft.world.level.chunk.LevelChunk chunk = mc.level.getChunkSource().getChunk(cx, cz, false);
+                net.minecraft.world.chunk.WorldChunk chunk = mc.world.getChunk(cx, cz);
                 if (chunk != null) {
                     for (BlockEntity blockEntity : chunk.getBlockEntities().values()) {
                         if (blockEntity instanceof SignBlockEntity) {
                             SignBlockEntity sign = (SignBlockEntity) blockEntity;
-                            BlockPos pos = sign.getBlockPos();
+                            BlockPos pos = sign.getPos();
                             if (loggedSigns.contains(pos)) continue;
                             
                             logSign(pos, sign);
@@ -105,7 +106,7 @@ public class SignLogger extends Module {
         StringBuilder sb = new StringBuilder();
         
         SignText front = sign.getFrontText();
-        for (Component component : front.getMessages(false)) {
+        for (Text component : front.getMessages(false)) {
             String text = component.getString().trim();
             if (!text.isEmpty()) {
                 sb.append(text).append(" ");
@@ -113,7 +114,7 @@ public class SignLogger extends Module {
         }
 
         SignText back = sign.getBackText();
-        for (Component component : back.getMessages(false)) {
+        for (Text component : back.getMessages(false)) {
             String text = component.getString().trim();
             if (!text.isEmpty()) {
                 sb.append(text).append(" ");
@@ -122,7 +123,7 @@ public class SignLogger extends Module {
 
         String signContent = sb.toString().trim();
         if (!signContent.isEmpty()) {
-            boolean isNew = com.example.addon.SignManager.processSign(signContent, pos, mc.level);
+            boolean isNew = SignManager.processSign(signContent, pos, mc.world);
             if (isNew) {
                 info("Found new Sign at [%d, %d, %d]: %s", pos.getX(), pos.getY(), pos.getZ(), signContent);
             }
@@ -131,21 +132,24 @@ public class SignLogger extends Module {
 
     @EventHandler
     private void onRender3D(meteordevelopment.meteorclient.events.render.Render3DEvent event) {
-        if (!render.get() || mc.level == null || mc.player == null) return;
+        if (!render.get() || mc.world == null || mc.player == null) return;
 
-        String currentDim = mc.level.dimension().toString();
-        BlockPos playerPos = mc.player.blockPosition();
+        String currentDim = mc.world.getRegistryKey().getValue().toString();
+        BlockPos playerPos = mc.player.getBlockPos();
         int r = renderDistance.get();
 
-        for (com.example.addon.SignManager.SignEntry entry : com.example.addon.SignManager.SIGN_DB.values()) {
+        for (SignManager.SignEntry entry : SignManager.SIGN_DB.values()) {
             boolean hasDates = !entry.possibleDates.isEmpty();
             boolean hasPlayers = !entry.players.isEmpty();
             meteordevelopment.meteorclient.utils.render.color.Color boxColor = hasPlayers ? playerColor.get() : (hasDates ? dateColor.get() : color.get());
 
-            for (com.example.addon.SignManager.SignLocation loc : entry.locations) {
+            for (SignManager.SignLocation loc : entry.locations) {
                 if (loc.dimension.equals(currentDim)) {
                     BlockPos pos = new BlockPos(loc.x, loc.y, loc.z);
-                    if (pos.closerToCenterThan(mc.player.position(), r)) {
+                    double dx = pos.getX() - mc.player.getX();
+                    double dy = pos.getY() - mc.player.getY();
+                    double dz = pos.getZ() - mc.player.getZ();
+                    if (dx*dx + dy*dy + dz*dz < r*r) {
                         event.renderer.box(pos, boxColor, boxColor, meteordevelopment.meteorclient.renderer.ShapeMode.Lines, 0);
                     }
                 }

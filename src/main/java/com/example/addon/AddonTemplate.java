@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import meteordevelopment.meteorclient.addons.GithubRepo;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.commands.Commands;
+import meteordevelopment.meteorclient.systems.hud.HudGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import org.slf4j.Logger;
@@ -13,11 +14,14 @@ import org.slf4j.Logger;
 public class AddonTemplate extends MeteorAddon {
     public static final Logger LOG = LogUtils.getLogger();
     public static final Category CATEGORY = new Category("Archiv.IO");
+    public static final HudGroup HUD_GROUP = new HudGroup("Archiv.IO");
 
     @Override
     public void onInitialize() {
-        LOG.info("Initializing Archiv.IO Addon");
-        com.example.addon.SignManager.load();
+        LOG.info("Initializing Archiv.IO Meteor Addon");
+
+        // Load database
+        SignManager.load();
 
         // Modules
         Modules.get().add(new SignLogger());
@@ -38,6 +42,6 @@ public class AddonTemplate extends MeteorAddon {
 
     @Override
     public GithubRepo getRepo() {
-        return new GithubRepo("MeteorDevelopment", "meteor-addon-template");
+        return new GithubRepo("GiopliDev", "SignLoggerMeteorAddon");
     }
 }

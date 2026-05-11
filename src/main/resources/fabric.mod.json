@@ -3,12 +3,12 @@
   "id": "archiv-io",
   "version": "${version}",
   "name": "Archiv.IO",
-  "description": "Addons useful to player that like archiving",
+  "description": "Addon useful to player that like archiving.",
   "authors": [
     "GiopliDev"
   ],
   "contact": {
-    "sources": "https://github.com/MeteorDevelopment/meteor-addon-template"
+    "sources": "https://github.com/GiopliDev/SignLoggerMeteorAddon"
   },
   "icon": "assets/template/icon.png",
   "environment": "client",
@@ -29,8 +29,8 @@
     }
   },
   "depends": {
-    "java": ">=${jdk_version}",
-    "minecraft": "${minecraft_version}",
+    "java": ">=21",
+    "minecraft": ">=1.21",
     "meteor-client": "*"
   }
 }

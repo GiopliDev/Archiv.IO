@@ -4,8 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import meteordevelopment.meteorclient.MeteorClient;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ServerInfo;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 import java.io.File;
 import java.io.FileReader;
@@ -17,82 +19,115 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class SignManager {
-    public static final File FILE = new File(MeteorClient.FOLDER, "sign_logs.json");
-    public static final File PLAYERS_FILE = new File(MeteorClient.FOLDER, "sign_players.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    // goofy date regex
     private static final Pattern DATE_PATTERN = Pattern.compile(
             "\\b(\\d{1,2}[/\\.\\-]\\d{1,2}[/\\.\\-]\\d{2,4})\\b|" +
                     "\\b(\\d{1,2}\\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-zA-Z]*\\s+\\d{2,4})\\b|" +
                     "\\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-zA-Z]*\\s+\\d{1,2}(?:st|nd|rd|th)?\\s*,?\\s*\\d{2,4}\\b",
             Pattern.CASE_INSENSITIVE);
 
-    // uses sign content as key
     public static final Map<String, SignEntry> SIGN_DB = new HashMap<>();
+    
+    // Global player database
+    public static final Map<String, PlayerEntry> GLOBAL_PLAYERS = new HashMap<>();
+    
+    private static String currentServerPath = "default";
 
-    // Known players tracking
-    public static final Set<String> KNOWN_PLAYERS = new HashSet<>();
+    public static void updateServerPath() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        String path;
+        if (mc.isInSingleplayer()) {
+            path = "singleplayer";
+        } else {
+            ServerInfo info = mc.getCurrentServerEntry();
+            path = (info != null) ? info.address.replace(":", "_") : "unknown";
+        }
+        
+        if (!currentServerPath.equals(path)) {
+            currentServerPath = path;
+            load();
+        }
+    }
+
+    public static String getCurrentServer() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.isInSingleplayer()) return "singleplayer";
+        ServerInfo info = mc.getCurrentServerEntry();
+        return (info != null) ? info.address : "unknown";
+    }
+
+    private static File getRootFolder() {
+        File folder = new File(MeteorClient.FOLDER, "ArchivIO");
+        if (!folder.exists()) folder.mkdirs();
+        return folder;
+    }
+
+    private static File getServerFolder() {
+        File folder = new File(getRootFolder(), currentServerPath);
+        if (!folder.exists()) folder.mkdirs();
+        return folder;
+    }
 
     public static void load() {
-        if (FILE.exists()) {
-            try (FileReader reader = new FileReader(FILE)) {
-                Type type = new TypeToken<Map<String, SignEntry>>() {
-                }.getType();
+        SIGN_DB.clear();
+        
+        // Load server-specific signs
+        File file = new File(getServerFolder(), "sign_logs.json");
+        if (file.exists()) {
+            try (FileReader reader = new FileReader(file)) {
+                Type type = new TypeToken<Map<String, SignEntry>>() {}.getType();
                 Map<String, SignEntry> loaded = GSON.fromJson(reader, type);
-                if (loaded != null) {
-                    SIGN_DB.clear();
-                    SIGN_DB.putAll(loaded);
-                }
+                if (loaded != null) SIGN_DB.putAll(loaded);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-        if (PLAYERS_FILE.exists()) {
-            try (FileReader reader = new FileReader(PLAYERS_FILE)) {
-                Type type = new TypeToken<Set<String>>() {
-                }.getType();
-                Set<String> loaded = GSON.fromJson(reader, type);
-                if (loaded != null) {
-                    KNOWN_PLAYERS.clear();
-                    KNOWN_PLAYERS.addAll(loaded);
+        // Load global players if not loaded yet
+        if (GLOBAL_PLAYERS.isEmpty()) {
+            File playersFile = new File(getRootFolder(), "global_players.json");
+            if (playersFile.exists()) {
+                try (FileReader reader = new FileReader(playersFile)) {
+                    Type type = new TypeToken<Map<String, PlayerEntry>>() {}.getType();
+                    Map<String, PlayerEntry> loaded = GSON.fromJson(reader, type);
+                    if (loaded != null) GLOBAL_PLAYERS.putAll(loaded);
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
     }
 
     public static void save() {
-        try {
-            if (!FILE.getParentFile().exists()) {
-                FILE.getParentFile().mkdirs();
-            }
-            try (FileWriter writer = new FileWriter(FILE)) {
-                GSON.toJson(SIGN_DB, writer);
-            }
+        File file = new File(getServerFolder(), "sign_logs.json");
+        try (FileWriter writer = new FileWriter(file)) {
+            GSON.toJson(SIGN_DB, writer);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     public static void savePlayers() {
-        try {
-            if (!PLAYERS_FILE.getParentFile().exists()) {
-                PLAYERS_FILE.getParentFile().mkdirs();
-            }
-            try (FileWriter writer = new FileWriter(PLAYERS_FILE)) {
-                GSON.toJson(KNOWN_PLAYERS, writer);
-            }
+        File file = new File(getRootFolder(), "global_players.json");
+        try (FileWriter writer = new FileWriter(file)) {
+            GSON.toJson(GLOBAL_PLAYERS, writer);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static boolean processSign(String content, BlockPos pos, Level level) {
+    public static void addKnownPlayer(String name) {
+        String server = getCurrentServer();
+        PlayerEntry entry = GLOBAL_PLAYERS.computeIfAbsent(name, k -> new PlayerEntry());
+        if (entry.servers.add(server)) {
+            savePlayers();
+        }
+    }
+
+    public static boolean processSign(String content, BlockPos pos, World level) {
+        updateServerPath();
         SignLocation loc = new SignLocation(pos,
-                level != null && level.dimension() != null ? level.dimension().toString() : "unknown");
+                level != null && level.getRegistryKey() != null ? level.getRegistryKey().getValue().toString() : "unknown");
 
         if (SIGN_DB.containsKey(content)) {
             SignEntry entry = SIGN_DB.get(content);
@@ -108,17 +143,17 @@ public class SignManager {
         entry.content = content;
         entry.locations.add(loc);
 
-        // Extract possible dates using Regex
         Matcher matcher = DATE_PATTERN.matcher(content);
         while (matcher.find()) {
             entry.possibleDates.add(matcher.group(0).trim());
         }
 
-        // Search for known players in the sign text
         String lowerContent = content.toLowerCase();
-        for (String player : KNOWN_PLAYERS) {
+        for (String player : GLOBAL_PLAYERS.keySet()) {
             if (lowerContent.contains(player.toLowerCase())) {
                 entry.players.add(player);
+                // Also update that the player was seen on this server
+                addKnownPlayer(player);
             }
         }
 
@@ -129,19 +164,29 @@ public class SignManager {
 
     public static int updateAllPlayers() {
         int updated = 0;
+        String currentServer = getCurrentServer();
         for (SignEntry entry : SIGN_DB.values()) {
             String lowerContent = entry.content.toLowerCase();
             boolean changed = false;
-            for (String player : KNOWN_PLAYERS) {
+            for (String player : GLOBAL_PLAYERS.keySet()) {
                 if (lowerContent.contains(player.toLowerCase()) && !entry.players.contains(player)) {
                     entry.players.add(player);
+                    GLOBAL_PLAYERS.get(player).servers.add(currentServer);
                     changed = true;
                 }
             }
             if (changed) updated++;
         }
-        if (updated > 0) save();
+        if (updated > 0) {
+            save();
+            savePlayers();
+        }
         return updated;
+    }
+
+    public static class PlayerEntry {
+        public long firstSeen = System.currentTimeMillis();
+        public Set<String> servers = new HashSet<>();
     }
 
     public static class SignEntry {
@@ -155,8 +200,7 @@ public class SignManager {
         public int x, y, z;
         public String dimension;
 
-        public SignLocation() {
-        }
+        public SignLocation() {}
 
         public SignLocation(BlockPos pos, String dimension) {
             this.x = pos.getX();
@@ -167,10 +211,8 @@ public class SignManager {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o)
-                return true;
-            if (o == null || getClass() != o.getClass())
-                return false;
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
             SignLocation that = (SignLocation) o;
             return x == that.x && y == that.y && z == that.z && Objects.equals(dimension, that.dimension);
         }

@@ -31,8 +31,3 @@ bin/
 # fabric
 
 run/
-
-# PalantirTools
-sign_logs.json
-sign_players.json
-sign_export.csv
