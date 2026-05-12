@@ -1,6 +1,6 @@
 # 📚 Archiv.IO - Meteor Addon
 
-![Version](https://img.shields.io/badge/Version-0.1.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-0.1.1-blue?style=for-the-badge)
 ![Minecraft](https://img.shields.io/badge/Minecraft-%3E=1.21.4-green?style=for-the-badge)
 
 **Archiv.IO** is a goofy ahh Meteor Client addon designed for players who love data archiving and world/player history.
