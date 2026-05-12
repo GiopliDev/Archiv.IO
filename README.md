@@ -16,7 +16,7 @@
 - **Server-Specific Folders**: All the records are separated in server folders.
 - **Date Tracking**: Automatically identifies and extracts dates from sign text using regex patterns.
 - **Player Tracking**: Detects known players mentioned on signs and keeps a list of "Known Players" for highlighting.
-- **CSV Export**: Export your entire sign database to a professional CSV file for external analysis.
+- **CSV Export**: Export your entire sign database to a CSV file for external analysis.
 - **Visual Highlights**: ESP but for signs, with special colors for signs containing dates or known players.
 
 ---
