@@ -17,6 +17,10 @@ repositories {
         name = "meteor-maven-snapshots"
         url = uri("https://maven.meteordev.org/snapshots")
     }
+    maven {
+        name = "babbaj-repo"
+        url = uri("https://babbaj.github.io/maven/")
+    }
 }
 
 dependencies {
@@ -27,6 +31,10 @@ dependencies {
 
     // Meteor
     modImplementation(libs.meteor.client)
+
+    // Baritone (Only needed at runtime in development since Meteor interacts with it via commands)
+    modRuntimeOnly("meteordevelopment:baritone:1.21.4-SNAPSHOT")
+    runtimeOnly("dev.babbaj:nether-pathfinder:1.6")
 }
 
 tasks {
@@ -54,13 +62,15 @@ tasks {
     }
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
 
     withType<JavaCompile> {
         options.encoding = "UTF-8"
-        options.release = 21
         options.compilerArgs.add("-Xlint:deprecation")
         options.compilerArgs.add("-Xlint:unchecked")
     }

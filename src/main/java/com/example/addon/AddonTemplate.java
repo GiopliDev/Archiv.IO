@@ -22,12 +22,18 @@ public class AddonTemplate extends MeteorAddon {
 
         // Load database
         SignManager.load();
+        KitManager.load();
 
         // Modules
         Modules.get().add(new SignLogger());
+        Modules.get().add(new com.example.addon.modules.KitBot());
+        Modules.get().add(new com.example.addon.modules.StashMover());
+        Modules.get().add(new com.example.addon.modules.CustomAutoLogin());
 
         // Commands
         Commands.add(new SignSearchCommand());
+        Commands.add(new com.example.addon.commands.KitBotCommand());
+        Commands.add(new com.example.addon.commands.StashMoverCommand());
     }
 
     @Override
