@@ -1,6 +1,6 @@
 # 📚 Archiv.IO - Meteor Addon
 
-![Version](https://img.shields.io/badge/Version-0.1.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-0.1.1-blue?style=for-the-badge)
 ![Minecraft](https://img.shields.io/badge/Minecraft-%3E=1.21.4-green?style=for-the-badge)
 
 **Archiv.IO** is a goofy ahh Meteor Client addon designed for players who love data archiving and world/player history.
@@ -16,7 +16,7 @@
 - **Server-Specific Folders**: All the records are separated in server folders.
 - **Date Tracking**: Automatically identifies and extracts dates from sign text using regex patterns.
 - **Player Tracking**: Detects known players mentioned on signs and keeps a list of "Known Players" for highlighting.
-- **CSV Export**: Export your entire sign database to a professional CSV file for external analysis.
+- **CSV Export**: Export your entire sign database to a CSV file for external analysis.
 - **Visual Highlights**: ESP but for signs, with special colors for signs containing dates or known players.
 
 ---
